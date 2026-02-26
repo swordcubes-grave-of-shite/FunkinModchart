@@ -1,5 +1,7 @@
 package modchart.backend.graphics.renderers;
 
+import flixel.math.FlxPoint;
+
 using flixel.util.FlxColorTransformUtil;
 
 final matrix:Matrix = new Matrix();
@@ -12,25 +14,26 @@ final helperVector = new Vector3();
 @:noDebug
 #end
 final class ArrowRenderer extends BaseRenderer<FlxSprite> {
-	inline private function getGraphicVertices(planeWidth:Float, planeHeight:Float, flipX:Bool, flipY:Bool) {
-		var x1 = flipX ? planeWidth : -planeWidth;
-		var x2 = flipX ? -planeWidth : planeWidth;
-		var y1 = flipY ? planeHeight : -planeHeight;
-		var y2 = flipY ? -planeHeight : planeHeight;
+	inline private function getGraphicVertices(fullWidth:Float, fullHeight:Float, halfWidth:Float, halfHeight:Float, xOff:Float, yOff:Float, flipX:Bool, flipY:Bool) {
+	    var hw = flipX ? -halfWidth : halfWidth;
+		var hh = flipY ? -halfHeight : halfHeight;
+
+		var fw = flipX ? -fullWidth : fullWidth;
+		var fh = flipY ? -fullHeight : fullHeight;
 
 		return [
 			// top left
-			x1,
-			y1,
+			xOff - hw,
+			yOff - hh,
 			// top right
-			x2,
-			y1,
+			fw + xOff - hw,
+			yOff - hh,
 			// bottom left
-			x1,
-			y2,
+			xOff - hw,
+			fh + yOff - hh,
 			// bottom right
-			x2,
-			y2
+			fw + xOff - hw,
+			fh + yOff - hh
 		];
 	}
 
@@ -97,12 +100,20 @@ final class ArrowRenderer extends BaseRenderer<FlxSprite> {
 		final depth = projectionDepth;
 
 		var depthScale = 1 / depth;
-		var planeWidth = arrow.frame.frame.width * arrow.scale.x * .5;
-		var planeHeight = arrow.frame.frame.height * arrow.scale.y * .5;
-
 		arrow._z = (depth - 1) * 1000;
 
-		var planeVertices = getGraphicVertices(planeWidth, planeHeight, arrow.flipX, arrow.flipY);
+		var fullWidth = arrow.frame.frame.width * arrow.scale.x;
+		var fullHeight = arrow.frame.frame.height * arrow.scale.y;
+
+		var halfWidth = arrow.frameWidth * arrow.scale.x * .5;
+		var halfHeight = arrow.frameHeight * arrow.scale.y * .5;
+
+		var animOffset = arrow.animation.curAnim?.offset ?? FlxPoint.weak();
+		var xOff = (arrow.frame.offset.x - (arrow.frameOffset.x + animOffset.x)) * arrow.scale.x;
+		var yOff = (arrow.frame.offset.y - (arrow.frameOffset.y + animOffset.y)) * arrow.scale.y;
+		animOffset.putWeak();
+
+		var planeVertices = getGraphicVertices(fullWidth, fullHeight, halfWidth, halfHeight, xOff, yOff, arrow.flipX, arrow.flipY);
 		var projectionZ:haxe.ds.Vector<Float> = new haxe.ds.Vector(Math.ceil(planeVertices.length / 2));
 
 		var vertPointer = 0;
@@ -227,7 +238,7 @@ final class ArrowRenderer extends BaseRenderer<FlxSprite> {
 		indices[3] = 1;
 		indices[4] = 3;
 		indices[5] = 2;
-		
+
 		// @formatter:on
 		final absGlow = output.visuals.glow * 255;
 		final negGlow = 1 - output.visuals.glow;
