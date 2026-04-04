@@ -172,118 +172,58 @@ class Macro {
 					}
 				],
 				expr: macro {
-					// hay glitches en el alpha de las holds
-					// no es de aqui, ya llege a la conclusion de que no es dentro de aqui
-					// otra cosa, el alpha que agarran es de los batchs anteriores (no estos)
-					// tipo si yo pongo en el arrow renderer una alpha hardcodeadas, esa alpha se pone en las primeras holds
-					if (position == null)
-						position = point.set();
+    				if (position == null) position = point.set();
+                    cameraBounds?.putWeak();
 
-					if (cameraBounds == null)
-						cameraBounds = rect.set(0, 0, FlxG.width, FlxG.height);
+                    final prevNumberOfVertices = this.numVertices;
+                    final verticesLength = (vertices.length >> 1) << 1;
+                    final indicesLength = Math.floor(indices.length / 3) * 3;
 
-					var verticesLength:Int = vertices.length;
-					var prevVerticesLength:Int = this.vertices.length;
-					var numberOfVertices:Int = Std.int(verticesLength / 2);
-					var prevIndicesLength:Int = this.indices.length;
-					var prevUVTDataLength:Int = this.uvtData.length;
-					var prevNumberOfVertices:Int = this.numVertices;
-					var prevColorsPos:Int = colorsPosition;
-					var prevColorsLength:Int = this.colors.length;
+                    var i = 0;
+                    while (i < verticesLength) {
+                        this.uvtData.push(uvtData[i]);
+                        this.vertices.push(position.x + vertices[i]);
 
-					var tempX:Float, tempY:Float;
-					var i:Int = 0;
-					var currentVertexPosition:Int = prevVerticesLength;
+                        this.uvtData.push(uvtData[i + 1]);
+                        this.vertices.push(position.y + vertices[i + 1]);
 
-					while (i < verticesLength) {
-						tempX = position.x + vertices[i];
-						tempY = position.y + vertices[i + 1];
+                        i += 2;
+                    }
+                    position.putWeak();
 
-						this.vertices[currentVertexPosition++] = tempX;
-						this.vertices[currentVertexPosition++] = tempY;
+                    final transformsLength = transforms?.length ?? 0;
 
-						if (i == 0) {
-							bounds.set(tempX, tempY, 0, 0);
-						} else {
-							inflateBounds(bounds, tempX, tempY);
-						}
+                    var index:Int;
+                    var transform:ColorTransform;
 
-						i = i + 2;
-					}
+                    i = 0;
+                    while (i < indicesLength) {
+                        index = indices[i];
 
-					var indicesLength:Int = indices.length;
-					if (!cameraBounds.overlaps(bounds)) {
-						this.vertices.splice(this.vertices.length - verticesLength, verticesLength);
-					} else {
-						var uvtDataLength:Int = uvtData.length;
-						for (i in 0...uvtDataLength) {
-							this.uvtData[prevUVTDataLength + i] = uvtData[i];
-						}
+                        if (index < transformsLength)
+                            transform = transforms[index];
+                        else
+                            transform = FlxDrawBaseItem.colorIdentity;
 
-						for (i in 0...indicesLength) {
-							this.indices[prevIndicesLength + i] = indices[i] + prevNumberOfVertices;
-						}
+                        if (colored) {
+                            colorMultipliers.push(transform.redMultiplier);
+                            colorMultipliers.push(transform.greenMultiplier);
+                            colorMultipliers.push(transform.blueMultiplier);
+                            colorMultipliers.push(transform.alphaMultiplier);
+                        } else {
+                            alphas.push(transform.alphaMultiplier);
+                        }
 
-						if (colored) {
-							for (i in 0...numberOfVertices) {
-								this.colors[prevColorsLength + i] = 0;
-							}
+                        if (hasColorOffsets) {
+                            colorOffsets.push(transform.redOffset);
+                            colorOffsets.push(transform.greenOffset);
+                            colorOffsets.push(transform.blueOffset);
+                            colorOffsets.push(transform.alphaOffset);
+                        }
 
-							colorsPosition += numberOfVertices;
-						}
-
-						verticesPosition = verticesPosition + verticesLength;
-						indicesPosition = indicesPosition + indicesLength;
-					}
-
-					position.putWeak();
-					cameraBounds.putWeak();
-
-					#if (flixel >= "5.2.0")
-					for (_ in 0...indicesLength) {
-						final possibleTransform = transforms[Math.floor(_ / indicesLength * transforms.length)];
-
-						var alphaMultiplier = 1.;
-
-						if (possibleTransform != null)
-							alphaMultiplier = possibleTransform.alphaMultiplier;
-
-						alphas.push(alphaMultiplier);
-					}
-
-					if (colored || hasColorOffsets) {
-						if (colorMultipliers == null)
-							colorMultipliers = [];
-
-						if (colorOffsets == null)
-							colorOffsets = [];
-
-						for (_ in 0...indicesLength) {
-							final transform = transforms[Math.floor(_ / indicesLength * transforms.length)];
-							if (transform != null) {
-								colorMultipliers.push(transform.redMultiplier);
-								colorMultipliers.push(transform.greenMultiplier);
-								colorMultipliers.push(transform.blueMultiplier);
-
-								colorOffsets.push(transform.redOffset);
-								colorOffsets.push(transform.greenOffset);
-								colorOffsets.push(transform.blueOffset);
-								colorOffsets.push(transform.alphaOffset);
-							} else {
-								colorMultipliers.push(1);
-								colorMultipliers.push(1);
-								colorMultipliers.push(1);
-
-								colorOffsets.push(0);
-								colorOffsets.push(0);
-								colorOffsets.push(0);
-								colorOffsets.push(0);
-							}
-
-							colorMultipliers.push(1);
-						}
-					}
-					#end
+                        this.indices.push(prevNumberOfVertices + index);
+                        i++;
+                    }
 				}
 			}),
 		};
